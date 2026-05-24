@@ -8,14 +8,14 @@ BodySpeak is a health reasoning engine that translates your symptoms into plain-
 
 ## Features
 
-### 🧠 Physics-Based Reasoning
+###  Physics-Based Reasoning
 Every symptom is broken down into physical events using first principles:
 - **Fluid dynamics** — pressure, flow, resistance, osmosis, diffusion
 - **Thermodynamics** — heat, energy transfer
 - **Basic chemistry** — pH, ions, reactions
 - **Core biology** — the body as a hydraulic system (pump, pipes, filters)
 
-### 💬 Symptom Chat
+###  Symptom Chat
 Type what you feel in natural language. The AI responds with a structured 5-section card:
 
 | Section | What it does |
@@ -28,7 +28,7 @@ Type what you feel in natural language. The AI responds with a structured 5-sect
 
 Responses stream token-by-token, building the analysis in real time.
 
-### 🔗 Interactive Causal Graph (D3.js)
+###  Interactive Causal Graph (D3.js)
 As the AI reasons, a force-directed graph builds on the right panel:
 - **Teal nodes** — symptoms you feel
 - **Blue nodes** — internal body processes
@@ -36,7 +36,7 @@ As the AI reasons, a force-directed graph builds on the right panel:
 - **Arrows** — causal relationships with physics labels
 - Drag, zoom, pan — fully interactive
 
-### 📊 Health Tracker
+###  Health Tracker
 Track your measurements with large, accessible forms:
 - Blood Pressure
 - Heart Rate
@@ -47,16 +47,16 @@ Track your measurements with large, accessible forms:
 
 All data is saved locally in your browser. Nothing leaves your machine.
 
-### 📈 Trend Charts
+###  Trend Charts
 View your measurements over time with D3.js line charts. Filter by type and see visual trends directly in the history panel.
 
-### 🎤 Voice Input (browser speech recognition)
+###  Voice Input (browser speech recognition)
 Speak instead of type. Click the microphone button and describe your symptoms with your voice.
 
-### 📋 Export
+###  Export
 Download your entire conversation as a text file to share with a healthcare provider.
 
-### 🚫 Medical Term Blocker
+###  Medical Term Blocker
 The system automatically detects and flags medical labels (disease names, diagnostic terms) to ensure the explanation stays purely physical — never a diagnosis.
 
 ---
