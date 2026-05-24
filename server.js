@@ -36,6 +36,8 @@ function checkForbiddenTerms(text) {
   return found;
 }
 
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+
 const SYSTEM_PROMPT = `You are a health reasoning engine that explains what someone feels using only physics, chemistry, and simple biology.
 
 CRITICAL RULES:
@@ -73,18 +75,36 @@ function buildUserMessage(symptoms, measurements) {
   let msg = symptoms;
   if (measurements && measurements.length > 0) {
     const measText = measurements.map(m => {
-      if (m.type === 'bp') return `Blood Pressure: ${m.systolic}/${m.diastolic}`;
-      if (m.type === 'hr') return `Heart Rate: ${m.value} bpm`;
-      if (m.type === 'weight') return `Weight: ${m.value} kg`;
-      if (m.type === 'temp') return `Temperature: ${m.value}°C`;
-      if (m.type === 'glucose') return `Blood Glucose: ${m.value} mg/dL`;
-      return `${m.type}: ${m.value}`;
+      if (m.type === 'bp') return `Blood Pressure: ${m.sys}/${m.dia}`;
+      if (m.type === 'hr') return `Heart Rate: ${m.val} bpm`;
+      if (m.type === 'weight') return `Weight: ${m.val} kg`;
+      if (m.type === 'temp') return `Temperature: ${m.val}°C`;
+      if (m.type === 'glucose') return `Blood Glucose: ${m.val} mg/dL`;
+      return `${m.type}: ${m.val}`;
     }).join(', ');
     msg += `\n\nMy current measurements: ${measText}`;
   }
   return msg;
 }
 
+function deepseekFetchOptions(messages, stream) {
+  return {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: DEEPSEEK_MODEL,
+      messages,
+      temperature: 0.5,
+      max_tokens: 2500,
+      stream
+    })
+  };
+}
+
+// ─── Non-streaming endpoint ────────────────────────────
 app.post('/api/diagnose', async (req, res) => {
   const { symptoms, measurements } = req.body;
   if (!symptoms || typeof symptoms !== 'string' || symptoms.trim().length === 0) {
@@ -92,38 +112,26 @@ app.post('/api/diagnose', async (req, res) => {
   }
 
   try {
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserMessage(symptoms, measurements) }
-        ],
-        temperature: 0.5,
-        max_tokens: 2500,
-        stream: false
-      })
-    });
+    const apiRes = await fetch(
+      'https://api.deepseek.com/v1/chat/completions',
+      deepseekFetchOptions([
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserMessage(symptoms, measurements) }
+      ], false)
+    );
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      return res.status(response.status).json({ error: `API error (${response.status})` });
+    if (!apiRes.ok) {
+      const errText = await apiRes.text().catch(() => '');
+      return res.status(apiRes.status).json({ error: `API error (${apiRes.status})${errText ? ': ' + errText : ''}` });
     }
 
-    const data = await response.json();
+    const data = await apiRes.json();
     let analysis = data.choices?.[0]?.message?.content;
     if (!analysis) return res.status(500).json({ error: 'Empty response.' });
 
     const foundTerms = checkForbiddenTerms(analysis);
     const wasFiltered = foundTerms.length > 0;
-    if (wasFiltered) {
-      analysis += '\n\n[The system flagged medical labels and rechecked this response.]';
-    }
+    if (wasFiltered) analysis += '\n\n[The system flagged medical labels and rechecked this response.]';
 
     res.json({ analysis, filtered: wasFiltered, foundTerms: wasFiltered ? foundTerms : [] });
   } catch (err) {
@@ -132,6 +140,7 @@ app.post('/api/diagnose', async (req, res) => {
   }
 });
 
+// ─── Streaming endpoint ────────────────────────────────
 app.post('/api/diagnose/stream', async (req, res) => {
   const { symptoms, measurements } = req.body;
   if (!symptoms || typeof symptoms !== 'string' || symptoms.trim().length === 0) {
@@ -143,37 +152,24 @@ app.post('/api/diagnose/stream', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
 
-  let fullText = '';
-
-  const sendEvent = (event, data) => {
-    try {
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    } catch (e) {
-      // client disconnected
-    }
+  const send = (event, data) => {
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch (e) {}
   };
 
+  let fullText = '';
+
   try {
-    const apiRes = await fetch('https://api.deepseek.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserMessage(symptoms, measurements) }
-        ],
-        temperature: 0.5,
-        max_tokens: 2500,
-        stream: true
-      })
-    });
+    const apiRes = await fetch(
+      'https://api.deepseek.com/v1/chat/completions',
+      deepseekFetchOptions([
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserMessage(symptoms, measurements) }
+      ], true)
+    );
 
     if (!apiRes.ok) {
-      sendEvent('error', { message: `API error (${apiRes.status})` });
+      const errText = await apiRes.text().catch(() => '');
+      send('error', { message: `API error (${apiRes.status})${errText ? ': ' + errText : ''}` });
       res.end();
       return;
     }
@@ -200,25 +196,21 @@ app.post('/api/diagnose/stream', async (req, res) => {
           const content = parsed.choices?.[0]?.delta?.content || '';
           if (content) {
             fullText += content;
-            sendEvent('token', { text: content, full: fullText });
+            send('token', { text: content, full: fullText });
           }
-        } catch (e) {
-          // skip malformed lines
-        }
+        } catch (e) { /* skip malformed */ }
       }
     }
 
     const foundTerms = checkForbiddenTerms(fullText);
     const wasFiltered = foundTerms.length > 0;
-    if (wasFiltered) {
-      fullText += '\n\n[The system flagged medical labels and rechecked this response.]';
-    }
+    if (wasFiltered) fullText += '\n\n[The system flagged medical labels and rechecked this response.]';
 
-    sendEvent('done', { full: fullText, filtered: wasFiltered, foundTerms });
+    send('done', { full: fullText, filtered: wasFiltered, foundTerms });
     res.end();
   } catch (err) {
     console.error('Stream error:', err);
-    sendEvent('error', { message: 'Connection error.' });
+    send('error', { message: 'Connection error. Check your internet.' });
     res.end();
   }
 });
@@ -229,4 +221,5 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n  Health Reasoning Engine running at http://localhost:${PORT}\n`);
+  console.log(`  Model: ${DEEPSEEK_MODEL}`);
 });
