@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Health Reasoning Engine</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="nav">
+    <div class="nav-left">
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 8v8M8 12h8"/>
+        </svg>
+        <span class="logo-text">Health<span class="logo-accent">Reason</span></span>
+      </div>
+    </div>
+    <div class="nav-center">
+      <span class="status-badge" id="statusBadge">
+        <span class="status-dot"></span>
+        <span class="status-label">Ready</span>
+      </span>
+    </div>
+    <div class="nav-right">
+      <button class="nav-btn" id="measBtn" title="Track measurement">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M3 12h3l3-9 3 18 3-9 3 9 3-9h3"/>
+        </svg>
+        <span>Track</span>
+      </button>
+      <button class="nav-btn" id="historyShowBtn" title="Measurement history">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span>History</span>
+      </button>
+      <button class="nav-btn nav-btn-clear" id="clearBtn" title="Clear chat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Left: Chat Panel -->
+    <section class="panel panel-chat" id="chatPanel">
+      <div class="chat-scroll" id="chatScroll">
+        <div class="chat-messages" id="chatMessages">
+
+          <div class="msg msg-system">
+            <div class="msg-bubble">
+              <div class="msg-text">Describe what your body is doing. I'll translate it into cause and effect using physics, not medical labels.
+              <div class="msg-examples">Example: "I wake up with headaches and feel dizzy when I stand. My urine has been foamy."</div></div>
+            </div>
+            <div class="msg-time">now</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="chat-input-wrap">
+        <div class="chat-input-inner">
+          <textarea class="chat-input" id="chatInput" rows="1" placeholder="Describe what you feel..." autofocus></textarea>
+          <button class="send-btn" id="sendBtn" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="chat-input-footer">
+          <span class="input-hint">Ctrl + Enter to send</span>
+          <span class="status-text" id="statusText">Online</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Graph Panel -->
+    <section class="panel panel-graph" id="graphPanel">
+      <div class="graph-toolbar">
+        <div class="graph-title">Causal Map</div>
+        <div class="graph-legend" id="graphLegend">
+          <span class="legend-dot dot-you"></span>
+          <span class="legend-dot dot-process"></span>
+          <span class="legend-dot dot-culprit"></span>
+        </div>
+        <div class="graph-controls">
+          <button class="graph-btn" id="zoomInBtn" title="Zoom in">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button class="graph-btn" id="zoomOutBtn" title="Zoom out">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button class="graph-btn" id="resetViewBtn" title="Reset view">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="graph-container" id="graphContainer">
+        <svg id="graphSvg" width="100%" height="100%"></svg>
+        <div class="graph-empty" id="graphEmpty">
+          <div class="empty-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          </div>
+          <div class="empty-title">Waiting for your description</div>
+          <div class="empty-desc">The causal map will appear here, building in real-time as the AI reasons.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Tracker Modal -->
+  <div class="modal-overlay" id="trackerModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title">Track Measurement</div>
+        <button class="modal-x" id="trackerClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label class="field-label">Type</label>
+          <select class="field-input" id="measType">
+            <option value="bp">Blood Pressure</option>
+            <option value="hr">Heart Rate</option>
+            <option value="weight">Weight</option>
+            <option value="temp">Temperature</option>
+            <option value="glucose">Blood Glucose</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="field-row" id="bpFields">
+          <div class="field flex-1">
+            <label class="field-label">Systolic</label>
+            <input type="number" class="field-input" id="bpSys" placeholder="120" min="40" max="280">
+          </div>
+          <div class="field flex-1">
+            <label class="field-label">Diastolic</label>
+            <input type="number" class="field-input" id="bpDia" placeholder="80" min="20" max="200">
+          </div>
+        </div>
+        <div class="field" id="singleField" style="display:none">
+          <label class="field-label" id="singleLabel">Value</label>
+          <input type="number" class="field-input" id="singleVal" placeholder="0" step="any">
+        </div>
+        <div class="field" id="unitField" style="display:none">
+          <label class="field-label">Unit</label>
+          <input type="text" class="field-input" id="customUnit" placeholder="e.g. kg, bpm, mmHg">
+        </div>
+        <div class="field">
+          <label class="field-label">Date &amp; Time</label>
+          <input type="datetime-local" class="field-input" id="measDt">
+        </div>
+        <div class="field">
+          <label class="field-label">Note</label>
+          <input type="text" class="field-input" id="measNote" placeholder="How do you feel right now?">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="trackerCancel">Cancel</button>
+        <button class="btn btn-primary" id="saveMeas">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal modal-wide">
+      <div class="modal-head">
+        <div class="modal-title">Measurement History</div>
+        <button class="modal-x" id="historyClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="history-toolbar">
+          <select class="field-input" id="historyFilter">
+            <option value="all">All</option>
+            <option value="bp">Blood Pressure</option>
+            <option value="hr">Heart Rate</option>
+            <option value="weight">Weight</option>
+            <option value="temp">Temperature</option>
+            <option value="glucose">Glucose</option>
+          </select>
+          <button class="btn btn-danger" id="clearAllMeas">Clear All</button>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="history-empty">No measurements recorded yet.</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" id="historyClose2">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="d3.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
