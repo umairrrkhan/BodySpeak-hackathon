@@ -175,6 +175,7 @@ async function submitQuery() {
   addMessage('user', text);
   chatInput.value = '';
   chatInput.style.height = 'auto';
+  sendBtn.disabled = true;
   sendBtn.classList.remove('active');
   setStatus('busy', 'Reasoning...');
   state.streaming = true;
@@ -597,16 +598,15 @@ $('resetViewBtn').addEventListener('click', () => {
 chatInput.addEventListener('input', () => {
   chatInput.style.height = 'auto';
   chatInput.style.height = Math.min(chatInput.scrollHeight, 100) + 'px';
-  sendBtn.classList.toggle('active', chatInput.value.trim().length > 0);
+  const hasText = chatInput.value.trim().length > 0;
+  sendBtn.disabled = !hasText;
+  sendBtn.classList.toggle('active', hasText);
 });
 
 chatInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    submitQuery();
-  }
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
+    if (chatInput.value.trim().length > 0 && !state.streaming) submitQuery();
   }
 });
 
@@ -773,6 +773,13 @@ function init() {
     const h = graphContainer.clientHeight;
     svg.attr('viewBox', [0, 0, w, h]);
   });
+
+  // Unregister stale service workers
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      for (const reg of regs) reg.unregister();
+    });
+  }
 
   chatInput.focus();
 }
