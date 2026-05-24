@@ -75,9 +75,6 @@
         </div>
         <div class="input-row">
           <textarea class="input-field" id="chatInput" rows="1" placeholder="Describe what you feel — in your own words..." autofocus></textarea>
-          <button class="voice-btn" id="micBtn" title="Use your voice">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0114 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
-          </button>
           <button class="send-btn" id="sendBtn" disabled>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Send
@@ -106,7 +103,7 @@
           <button class="gctrl" id="resetViewBtn" title="Reset view">⟲</button>
         </div>
       </div>
-      <div class="graph-main">
+      <div class="graph-main" id="graphContainer">
         <svg id="graphSvg" width="100%" height="100%"></svg>
         <div class="graph-empty" id="graphEmpty">
           <div class="empty-icon">

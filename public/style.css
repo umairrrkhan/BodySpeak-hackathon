@@ -406,33 +406,6 @@ html, body {
   color: var(--text-tertiary);
 }
 
-.voice-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.voice-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.voice-btn.listening {
-  border-color: var(--red);
-  color: var(--red);
-  background: var(--red-light);
-  animation: pulse 1s infinite;
-}
-
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
@@ -822,7 +795,6 @@ select.field-input { cursor: pointer; }
   .msg-body { font-size: 15px; padding: 12px 14px; }
   .input-field { font-size: 16px; padding: 10px 12px; }
   .send-btn { font-size: 14px; padding: 10px 14px; }
-  .voice-btn { width: 42px; height: 42px; }
   .modal { border-radius: var(--radius-lg); }
   .modal-head { padding: 16px 18px 10px; }
   .modal-body { padding: 4px 18px 10px; }

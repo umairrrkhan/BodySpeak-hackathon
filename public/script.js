@@ -909,45 +909,6 @@ function init() {
     });
   }
 
-  // ─── Voice Input ──────────────────────────────────────
-  const micBtn = $('micBtn');
-  let recognition = null;
-  if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SR();
-    recognition.lang = 'en-US';
-    recognition.interimResults = true;
-    recognition.continuous = false;
-
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results).map(r => r[0].transcript).join('');
-      chatInput.value = transcript;
-      chatInput.style.height = 'auto';
-      chatInput.style.height = Math.min(chatInput.scrollHeight, 100) + 'px';
-      const hasText = transcript.trim().length > 0;
-      sendBtn.disabled = !hasText;
-      sendBtn.classList.toggle('active', hasText);
-    };
-
-    recognition.onend = () => {
-      micBtn.classList.remove('listening');
-      if (chatInput.value.trim().length > 0) submitQuery();
-    };
-
-    recognition.onerror = () => micBtn.classList.remove('listening');
-
-    micBtn.addEventListener('click', () => {
-      if (micBtn.classList.contains('listening')) {
-        recognition.stop();
-        micBtn.classList.remove('listening');
-      } else {
-        micBtn.classList.add('listening');
-        recognition.start();
-      }
-    });
-  } else {
-    micBtn.style.display = 'none';
-  }
 
   // ─── Suggestion Chips ──────────────────────────────────
   document.querySelectorAll('.chip, .example-chip').forEach(el => {
