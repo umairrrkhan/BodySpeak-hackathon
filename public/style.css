@@ -440,6 +440,72 @@ html, body {
 
 .send-btn:active { transform: scale(0.98); }
 
+/* ─── Stats Bar ─── */
+.stats-bar {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg);
+  overflow-x: auto;
+  min-height: 72px;
+}
+
+.stats-empty {
+  width: 100%;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-tertiary);
+  padding: 12px;
+}
+
+.stat-card {
+  flex: 0 0 130px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-tertiary);
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--stat-color, var(--text));
+  line-height: 1.2;
+}
+
+.stat-unit {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.stat-bar-track {
+  height: 3px;
+  background: var(--border-light);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
 .input-footer {
   display: flex;
   justify-content: space-between;

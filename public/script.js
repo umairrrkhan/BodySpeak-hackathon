@@ -481,31 +481,31 @@ function buildGraph(nodesData, edgesData) {
     .join('marker')
     .attr('id', d => d)
     .attr('viewBox', '0 -5 10 10')
-    .attr('refX', 20)
+    .attr('refX', 24)
     .attr('refY', 0)
-    .attr('markerWidth', 6)
-    .attr('markerHeight', 6)
+    .attr('markerWidth', 7)
+    .attr('markerHeight', 7)
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-4L8,0L0,4')
-    .attr('fill', 'rgba(200,200,220,0.3)');
+    .attr('fill', '#999');
 
-  // Edges
-  const linkGroup = g.append('g').attr('class', 'links');
+  // Edge line
   const link = linkGroup.selectAll('line')
     .data(graphEdges)
     .join('line')
-    .attr('stroke', 'rgba(200,200,220,0.2)')
+    .attr('stroke', '#999')
     .attr('stroke-width', 1.5)
+    .attr('opacity', 0.5)
     .attr('marker-end', 'url(#arrow)');
 
   const linkLabel = linkGroup.selectAll('text')
     .data(graphEdges)
     .join('text')
     .text(d => d.label)
-    .attr('fill', 'rgba(200,200,220,0.25)')
-    .attr('font-size', 8)
-    .attr('font-family', 'system-ui')
+    .attr('fill', '#888')
+    .attr('font-size', 9)
+    .attr('font-family', '-apple-system, sans-serif')
     .attr('text-anchor', 'middle');
 
   // Nodes
@@ -533,14 +533,14 @@ function buildGraph(nodesData, edgesData) {
 
   node.append('circle')
     .attr('r', d => d.radius)
-    .attr('fill', d => d.color + '22')
+    .attr('fill', d => d.color + '44')
     .attr('stroke', d => d.color)
-    .attr('stroke-width', 2);
+    .attr('stroke-width', 2.5);
 
   node.append('text')
     .text(d => d.label.length > 20 ? d.label.slice(0, 18) + '...' : d.label)
     .attr('fill', d => d.color)
-    .attr('font-size', d => Math.min(d.radius * 0.6, 11))
+    .attr('font-size', d => Math.min(d.radius * 0.55, 11))
     .attr('font-family', '-apple-system, sans-serif')
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'central');
@@ -751,6 +751,7 @@ function saveMeasurement() {
 
   saveMeasurements();
   closeTracker();
+  renderStats();
   $('measNote').value = '';
   $('singleVal').value = '';
   $('bpSys').value = '';
@@ -868,6 +869,80 @@ function renderTrendChart(filter) {
   g.append('g').attr('transform', `translate(${pad.left},0)`).call(d3.axisLeft(yScale).ticks(4));
 }
 
+// ─── Stats Dashboard ────────────────────────────────────
+function renderStats() {
+  const bar = $('statsBar');
+  const meas = state.measurements;
+
+  if (meas.length === 0) {
+    bar.innerHTML = '<div class="stats-empty">Track your numbers to see them here</div>';
+    return;
+  }
+
+  const latest = {};
+  for (const m of meas) {
+    if (!latest[m.type] || new Date(m.dt) > new Date(latest[m.type].dt)) {
+      latest[m.type] = m;
+    }
+  }
+
+  const types = ['bp', 'hr', 'weight', 'temp', 'glucose'];
+  let html = '';
+
+  for (const type of types) {
+    const m = latest[type];
+    if (!m) continue;
+
+    let label, value, unit, color = '#34c759';
+
+    if (type === 'bp') {
+      label = 'Blood Pressure';
+      value = `${m.sys}/${m.dia}`;
+      unit = 'mmHg';
+      if (m.sys >= 140 || m.dia >= 90) color = '#ff3b30';
+      else if (m.sys >= 130 || m.dia >= 85) color = '#ff9500';
+    } else if (type === 'hr') {
+      label = 'Heart Rate';
+      value = m.val;
+      unit = 'bpm';
+      if (m.val > 100 || m.val < 50) color = '#ff3b30';
+      else if (m.val > 90 || m.val < 60) color = '#ff9500';
+    } else if (type === 'weight') {
+      label = 'Weight';
+      value = m.val;
+      unit = 'kg';
+    } else if (type === 'temp') {
+      label = 'Temperature';
+      value = m.val;
+      unit = '°C';
+      if (m.val >= 38) color = '#ff3b30';
+    } else if (type === 'glucose') {
+      label = 'Blood Sugar';
+      value = m.val;
+      unit = 'mg/dL';
+      if (m.val > 180 || m.val < 70) color = '#ff3b30';
+      else if (m.val > 140) color = '#ff9500';
+    }
+
+    let barVal = type === 'bp' ? m.sys : m.val;
+    html += `
+      <div class="stat-card" style="--stat-color:${color}">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value">${value}</div>
+        <div class="stat-unit">${unit}</div>
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.min(100, (barVal / 200) * 100)}%;background:${color}"></div></div>
+      </div>
+    `;
+  }
+
+  if (!html) {
+    bar.innerHTML = '<div class="stats-empty">Track your numbers to see them here</div>';
+    return;
+  }
+
+  bar.innerHTML = html;
+}
+
 // ─── Init ────────────────────────────────────────────────
 function init() {
   // Tracker events
@@ -922,6 +997,8 @@ function init() {
       chatInput.focus();
     });
   });
+
+  renderStats();
 
   chatInput.focus();
 }
