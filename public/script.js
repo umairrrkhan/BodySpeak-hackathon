@@ -491,6 +491,7 @@ function buildGraph(nodesData, edgesData) {
     .attr('fill', '#999');
 
   // Edge line
+  const linkGroup = g.append('g').attr('class', 'links');
   const link = linkGroup.selectAll('line')
     .data(graphEdges)
     .join('line')
