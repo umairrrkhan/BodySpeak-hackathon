@@ -106,18 +106,21 @@ function deepseekFetchOptions(messages, stream) {
 
 // ─── Non-streaming endpoint ────────────────────────────
 app.post('/api/diagnose', async (req, res) => {
-  const { symptoms, measurements } = req.body;
+  const { symptoms, measurements, conversation } = req.body;
   if (!symptoms || typeof symptoms !== 'string' || symptoms.trim().length === 0) {
     return res.status(400).json({ error: 'Please describe what you are experiencing.' });
   }
 
+  const msgs = [{ role: 'system', content: SYSTEM_PROMPT }];
+  if (conversation && Array.isArray(conversation)) {
+    for (const m of conversation.slice(-10)) msgs.push({ role: m.role, content: m.content });
+  }
+  msgs.push({ role: 'user', content: buildUserMessage(symptoms, measurements) });
+
   try {
     const apiRes = await fetch(
       'https://api.deepseek.com/v1/chat/completions',
-      deepseekFetchOptions([
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserMessage(symptoms, measurements) }
-      ], false)
+      deepseekFetchOptions(msgs, false)
     );
 
     if (!apiRes.ok) {
@@ -142,10 +145,16 @@ app.post('/api/diagnose', async (req, res) => {
 
 // ─── Streaming endpoint ────────────────────────────────
 app.post('/api/diagnose/stream', async (req, res) => {
-  const { symptoms, measurements } = req.body;
+  const { symptoms, measurements, conversation } = req.body;
   if (!symptoms || typeof symptoms !== 'string' || symptoms.trim().length === 0) {
     return res.status(400).json({ error: 'Please describe what you are experiencing.' });
   }
+
+  const msgs = [{ role: 'system', content: SYSTEM_PROMPT }];
+  if (conversation && Array.isArray(conversation)) {
+    for (const m of conversation.slice(-10)) msgs.push({ role: m.role, content: m.content });
+  }
+  msgs.push({ role: 'user', content: buildUserMessage(symptoms, measurements) });
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -161,10 +170,7 @@ app.post('/api/diagnose/stream', async (req, res) => {
   try {
     const apiRes = await fetch(
       'https://api.deepseek.com/v1/chat/completions',
-      deepseekFetchOptions([
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildUserMessage(symptoms, measurements) }
-      ], true)
+      deepseekFetchOptions(msgs, true)
     );
 
     if (!apiRes.ok) {

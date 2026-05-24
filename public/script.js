@@ -2,7 +2,8 @@
 const state = {
   measurements: loadMeasurements(),
   streaming: false,
-  analysisId: 0
+  analysisId: 0,
+  conversation: []
 };
 
 // ─── DOM refs ────────────────────────────────────────────
@@ -11,8 +12,7 @@ const chatMessages = $('chatMessages');
 const chatScroll = $('chatScroll');
 const chatInput = $('chatInput');
 const sendBtn = $('sendBtn');
-const statusBadge = $('statusBadge');
-const statusText = $('statusText');
+const statusLabel = $('statusLabel');
 const graphEmpty = $('graphEmpty');
 const svg = d3.select('#graphSvg');
 
@@ -35,40 +35,49 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ─── Status ──────────────────────────────────────────────
 function setStatus(mode, label) {
-  statusBadge.className = 'status-badge';
-  if (mode === 'busy') statusBadge.classList.add('busy');
-  if (mode === 'error') statusBadge.classList.add('error');
-  const dot = statusBadge.querySelector('.status-dot');
-  const lbl = statusBadge.querySelector('.status-label');
-  if (label) lbl.textContent = label;
-  if (statusText) statusText.textContent = label || 'Online';
+  statusLabel.className = 'status-label';
+  if (mode === 'busy') statusLabel.classList.add('busy');
+  if (mode === 'error') statusLabel.classList.add('error');
+  const dot = statusLabel.querySelector('.status-dot');
+  const lbl = statusLabel.querySelector('span:last-child');
+  if (label && lbl) lbl.textContent = label;
 }
 
 // ─── Chat ────────────────────────────────────────────────
 function addMessage(type, content, extra) {
   const div = document.createElement('div');
   div.className = `msg msg-${type}`;
+
+  const sender = document.createElement('div');
+  sender.className = 'msg-sender';
+  sender.textContent = type === 'user' ? 'You' : type === 'system' ? 'BodySpeak' : 'BodySpeak';
+  div.appendChild(sender);
+
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+
+  if (type === 'analysis') {
+    const card = buildCard(content, extra);
+    body.appendChild(card);
+  } else {
+    const text = document.createElement('p');
+    text.className = 'msg-text';
+    text.textContent = content;
+    body.appendChild(text);
+  }
+  div.appendChild(body);
+
+  if (extra?.filtered) {
+    const notice = document.createElement('div');
+    notice.className = 'filtered-notice';
+    notice.textContent = 'Medical labels were removed from this analysis.';
+    body.appendChild(notice);
+  }
+
   const time = document.createElement('div');
   time.className = 'msg-time';
   time.textContent = ts();
-
-  if (type === 'analysis') {
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-    const card = buildCard(content, extra);
-    bubble.appendChild(card);
-    div.appendChild(bubble);
-    div.appendChild(time);
-  } else {
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-    const text = document.createElement('div');
-    text.className = 'msg-text';
-    text.textContent = content;
-    bubble.appendChild(text);
-    div.appendChild(bubble);
-    div.appendChild(time);
-  }
+  div.appendChild(time);
 
   chatMessages.appendChild(div);
   chatScroll.scrollTop = chatScroll.scrollHeight;
@@ -79,16 +88,20 @@ function addStreamingMessage() {
   const div = document.createElement('div');
   div.className = 'msg msg-analysis msg-streaming';
   div.id = 'streamingMsg';
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
+  const sender = document.createElement('div');
+  sender.className = 'msg-sender';
+  sender.textContent = 'BodySpeak';
+  div.appendChild(sender);
+  const body = document.createElement('div');
+  body.className = 'msg-body';
   const card = document.createElement('div');
   card.className = 'diag-card';
   card.id = 'streamingCard';
-  bubble.appendChild(card);
-  div.appendChild(bubble);
+  body.appendChild(card);
+  div.appendChild(body);
   const time = document.createElement('div');
   time.className = 'msg-time';
-  time.textContent = ts() + ' (streaming)';
+  time.textContent = ts() + ' (streaming...)';
   div.appendChild(time);
   chatMessages.appendChild(div);
   chatScroll.scrollTop = chatScroll.scrollHeight;
@@ -173,6 +186,7 @@ async function submitQuery() {
   if (!text || state.streaming) return;
 
   addMessage('user', text);
+  state.conversation.push({ role: 'user', content: text });
   chatInput.value = '';
   chatInput.style.height = 'auto';
   sendBtn.disabled = true;
@@ -190,7 +204,11 @@ async function submitQuery() {
     const res = await fetch('/api/diagnose/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symptoms: text, measurements: meas.length > 0 ? meas : undefined })
+      body: JSON.stringify({
+        symptoms: text,
+        measurements: meas.length > 0 ? meas : undefined,
+        conversation: state.conversation.length > 1 ? state.conversation.slice(-10) : undefined
+      })
     });
 
     if (!res.ok) {
@@ -232,6 +250,7 @@ async function submitQuery() {
             accumulated = data.full;
             updateStreamingCard(card, accumulated);
             finalizeStreaming(msgEl, accumulated, data.filtered);
+            state.conversation.push({ role: 'assistant', content: accumulated });
 
             if (data.full) {
               const parsed = parseCausalMap(data.full);
@@ -311,11 +330,11 @@ function finalizeStreaming(msgEl, text, filtered) {
 
   const sections = parseSections(text);
   const config = [
-    { key: 'SYMPTOM TRANSLATION', cls: 'section-translation', label: 'Translation to Physics' },
+    { key: 'SYMPTOM TRANSLATION', cls: 'section-translation', label: 'Translation' },
     { key: 'CAUSAL MAP', cls: 'section-map', label: 'Causal Chain' },
     { key: 'HIDDEN CULPRIT', cls: 'section-culprit', label: 'Hidden Culprit' },
-    { key: 'WHAT SOLVING IT LOOKS LIKE RIGHT NOW', cls: 'section-action', label: 'Immediate Action' },
-    { key: 'INSTANT FEEDBACK LOOP', cls: 'section-feedback', label: 'Feedback Loop' }
+    { key: 'WHAT SOLVING IT LOOKS LIKE RIGHT NOW', cls: 'section-action', label: 'What To Do Now' },
+    { key: 'INSTANT FEEDBACK LOOP', cls: 'section-feedback', label: 'How To Track Progress' }
   ];
 
   card.innerHTML = '';
@@ -616,14 +635,56 @@ sendBtn.addEventListener('click', submitQuery);
 $('clearBtn').addEventListener('click', () => {
   const msgs = chatMessages.querySelectorAll('.msg');
   for (const msg of msgs) {
-    if (msg.querySelector('.msg-system')) continue;
+    if (msg.id === 'welcomeMsg') continue;
     msg.remove();
   }
+  state.conversation = [];
   graphEmpty.style.display = 'flex';
   svg.selectAll('*').remove();
   if (graphSim) graphSim.stop();
   graphNodes = [];
   graphEdges = [];
+});
+
+// ─── Export ──────────────────────────────────────────────
+$('exportBtn').addEventListener('click', () => {
+  const msgs = chatMessages.querySelectorAll('.msg');
+  if (msgs.length <= 1) { addMessage('system', 'Nothing to export yet.'); return; }
+  let text = 'BodySpeak Conversation\n';
+  text += '======================\n';
+  text += `Date: ${new Date().toLocaleString()}\n\n`;
+  for (const msg of msgs) {
+    if (msg.id === 'welcomeMsg') continue;
+    const isUser = msg.classList.contains('msg-user');
+    const isAnalysis = msg.classList.contains('msg-analysis');
+    const sender = msg.querySelector('.msg-sender');
+    const timeEl = msg.querySelector('.msg-time');
+    const prefix = sender ? sender.textContent : 'Message';
+    const time = timeEl ? timeEl.textContent : '';
+    let content = '';
+    if (isUser) {
+      const t = msg.querySelector('.msg-text');
+      if (t) content = t.textContent;
+    }
+    if (isAnalysis) {
+      const sections = msg.querySelectorAll('.diag-section');
+      for (const sec of sections) {
+        const label = sec.querySelector('summary')?.textContent || '';
+        const body = sec.querySelector('.section-body')?.textContent || '';
+        content += `[${label}]\n${body}\n\n`;
+      }
+    }
+    text += `[${time}] ${prefix}:\n${content.trim()}\n\n`;
+  }
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'bodyspeak-conversation.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 });
 
 // ─── Tracker ────────────────────────────────────────────
@@ -714,6 +775,7 @@ function renderHistory(filter) {
 
   if (items.length === 0) {
     list.innerHTML = '<div class="history-empty">No measurements recorded yet.</div>';
+    $('trendSection').style.display = 'none';
     return;
   }
 
@@ -738,6 +800,72 @@ function renderHistory(filter) {
       renderHistory($('historyFilter').value);
     });
   }
+
+  renderTrendChart(filter);
+}
+
+function renderTrendChart(filter) {
+  const section = $('trendSection');
+  const svgEl = $('trendChart');
+  const items = state.measurements
+    .filter(m => m.type === filter)
+    .sort((a, b) => new Date(a.dt) - new Date(b.dt));
+
+  if (items.length < 2) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  const w = svgEl.clientWidth || 500;
+  const h = 140;
+  const pad = { top: 10, right: 10, bottom: 20, left: 40 };
+
+  const chartSvg = d3.select(svgEl);
+  chartSvg.selectAll('*').remove();
+  chartSvg.attr('viewBox', [0, 0, w, h]);
+
+  let values;
+  if (filter === 'bp') {
+    values = items.flatMap(d => [
+      { date: new Date(d.dt), val: d.sys, label: 'Systolic' },
+      { date: new Date(d.dt), val: d.dia, label: 'Diastolic' }
+    ]);
+  } else {
+    values = items.map(d => ({ date: new Date(d.dt), val: d.val }));
+  }
+
+  if (values.length < 2) { section.style.display = 'none'; return; }
+
+  const xScale = d3.scaleTime()
+    .domain(d3.extent(values, d => d.date))
+    .range([pad.left, w - pad.right]);
+
+  const yScale = d3.scaleLinear()
+    .domain([d3.min(values, d => d.val) - 5, d3.max(values, d => d.val) + 5])
+    .range([h - pad.bottom, pad.top]);
+
+  const line = d3.line()
+    .x(d => xScale(d.date))
+    .y(d => yScale(d.val));
+
+  const g = chartSvg.append('g');
+
+  if (filter === 'bp') {
+    const sysVals = values.filter(d => d.label === 'Systolic');
+    const diaVals = values.filter(d => d.label === 'Diastolic');
+    if (sysVals.length > 1) {
+      g.append('path').datum(sysVals).attr('d', line).attr('fill', 'none').attr('stroke', 'var(--red)').attr('stroke-width', 1.5).attr('opacity', 0.8);
+      g.selectAll('circle-sys').data(sysVals).join('circle').attr('cx', d => xScale(d.date)).attr('cy', d => yScale(d.val)).attr('r', 3).attr('fill', 'var(--red)');
+    }
+    if (diaVals.length > 1) {
+      g.append('path').datum(diaVals).attr('d', line).attr('fill', 'none').attr('stroke', 'var(--accent)').attr('stroke-width', 1.5).attr('opacity', 0.8);
+      g.selectAll('circle-dia').data(diaVals).join('circle').attr('cx', d => xScale(d.date)).attr('cy', d => yScale(d.val)).attr('r', 3).attr('fill', 'var(--accent)');
+    }
+  } else {
+    g.append('path').datum(values).attr('d', line).attr('fill', 'none').attr('stroke', 'var(--accent)').attr('stroke-width', 1.5).attr('opacity', 0.8);
+    g.selectAll('circle').data(values).join('circle').attr('cx', d => xScale(d.date)).attr('cy', d => yScale(d.val)).attr('r', 3).attr('fill', 'var(--accent)');
+  }
+
+  g.append('g').attr('transform', `translate(0,${h - pad.bottom})`).call(d3.axisBottom(xScale).ticks(3).tickFormat(d3.timeFormat('%m/%d')));
+  g.append('g').attr('transform', `translate(${pad.left},0)`).call(d3.axisLeft(yScale).ticks(4));
 }
 
 // ─── Init ────────────────────────────────────────────────
@@ -780,6 +908,59 @@ function init() {
       for (const reg of regs) reg.unregister();
     });
   }
+
+  // ─── Voice Input ──────────────────────────────────────
+  const micBtn = $('micBtn');
+  let recognition = null;
+  if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.lang = 'en-US';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results).map(r => r[0].transcript).join('');
+      chatInput.value = transcript;
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 100) + 'px';
+      const hasText = transcript.trim().length > 0;
+      sendBtn.disabled = !hasText;
+      sendBtn.classList.toggle('active', hasText);
+    };
+
+    recognition.onend = () => {
+      micBtn.classList.remove('listening');
+      if (chatInput.value.trim().length > 0) submitQuery();
+    };
+
+    recognition.onerror = () => micBtn.classList.remove('listening');
+
+    micBtn.addEventListener('click', () => {
+      if (micBtn.classList.contains('listening')) {
+        recognition.stop();
+        micBtn.classList.remove('listening');
+      } else {
+        micBtn.classList.add('listening');
+        recognition.start();
+      }
+    });
+  } else {
+    micBtn.style.display = 'none';
+  }
+
+  // ─── Suggestion Chips ──────────────────────────────────
+  document.querySelectorAll('.chip, .example-chip').forEach(el => {
+    el.addEventListener('click', () => {
+      const text = el.dataset.text || el.textContent;
+      chatInput.value = text;
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 100) + 'px';
+      sendBtn.disabled = false;
+      sendBtn.classList.add('active');
+      chatInput.focus();
+    });
+  });
 
   chatInput.focus();
 }
